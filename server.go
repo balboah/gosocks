@@ -133,7 +133,8 @@ func (s *SocksConn) Connect(addr []byte, aTyp AddrType, port []byte) error {
 }
 
 // Serve will Handshake and HandleRequest for an established net.Conn
-func Serve(c net.Conn) error {
+// or any other implementation of io.ReadWriteCloser
+func Serve(c io.ReadWriteCloser) error {
 	defer c.Close()
 
 	sock := SocksConn{c}
