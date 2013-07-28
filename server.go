@@ -3,11 +3,9 @@
 package socks
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"time"
@@ -24,7 +22,6 @@ type SocksConn struct {
 // Handshake is the first step
 // here we negotiate available authentication methods and verify the protocol version
 func (s *SocksConn) Handshake() error {
-	log.Print("Handshake")
 	buf := make([]byte, 2)
 	s.Read(buf)
 
@@ -76,7 +73,6 @@ func (s *SocksConn) HandleRequest() error {
 	}
 	buf = buf[:nread]
 
-	log.Print(hex.Dump(buf))
 	r, err := Unmarshal(buf)
 	if err != nil {
 		return err
