@@ -18,7 +18,7 @@ func ExampleServe() {
 			continue
 		}
 		go func() {
-			if err := Serve(conn); err != nil {
+			if err := Serve(conn, nil); err != nil {
 				log.Println(err)
 			}
 		}()

@@ -17,6 +17,7 @@ const VERSION = 0x5
 // SocksConn represents the client connection that we should read and reply Requests to
 type SocksConn struct {
 	io.ReadWriteCloser
+	Dialer
 }
 
 // Handshake is the first step
@@ -80,7 +81,7 @@ func (s *SocksConn) HandleRequest() error {
 
 	switch r.Cmd {
 	case CONNECT:
-		if err := s.Connect(r.Addr, r.Atyp, r.Port); err != nil {
+		if err := s.Dial(r.Addr, r.Atyp, r.Port); err != nil {
 			return err
 		}
 	}
@@ -88,9 +89,17 @@ func (s *SocksConn) HandleRequest() error {
 	return nil
 }
 
-// Connect will Dial an address of specified type (IPV4 or 6) on behalf of the client.
+type Dialer interface {
+	Dial([]byte, AddrType, []byte) error
+}
+
+type defaultDialer struct {
+	client io.ReadWriteCloser
+}
+
+// Dial will connect to an address of specified type (IPV4 or 6) on behalf of the client.
 // Writes and reads are copied between the client and the new connection until EOF of either end.
-func (s *SocksConn) Connect(addr []byte, aTyp AddrType, port []byte) error {
+func (d defaultDialer) Dial(addr []byte, aTyp AddrType, port []byte) error {
 	sport := strconv.Itoa(int(BytesToInt(port)))
 	var saddr string
 
@@ -114,18 +123,18 @@ func (s *SocksConn) Connect(addr []byte, aTyp AddrType, port []byte) error {
 		return err
 	}
 
-	if _, err := NewReply(0x0, laddr.IP, uint16(laddr.Port)).WriteTo(s); err != nil {
+	if _, err := NewReply(0x0, laddr.IP, uint16(laddr.Port)).WriteTo(d.client); err != nil {
 		return err
 	}
 
 	done := make(chan bool)
 	go func() {
-		io.Copy(s, conn)
-		s.Close()
+		io.Copy(d.client, conn)
+		d.client.Close()
 		done <- true
 	}()
 
-	io.Copy(conn, s)
+	io.Copy(conn, d.client)
 	conn.Close()
 	<-done
 
@@ -133,11 +142,15 @@ func (s *SocksConn) Connect(addr []byte, aTyp AddrType, port []byte) error {
 }
 
 // Serve will Handshake and HandleRequest for an established net.Conn
-// or any other implementation of io.ReadWriteCloser
-func Serve(c io.ReadWriteCloser) error {
+// or any other implementation of io.ReadWriteCloser. Connections will be proxied using specified
+// dialer.
+func Serve(c io.ReadWriteCloser, d Dialer) error {
 	defer c.Close()
 
-	sock := SocksConn{c}
+	if d == nil {
+		d = defaultDialer{c}
+	}
+	sock := SocksConn{c, d}
 
 	if err := sock.Handshake(); err != nil {
 		sock.FailHandshake()

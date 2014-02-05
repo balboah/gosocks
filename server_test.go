@@ -13,7 +13,7 @@ type nopCloser struct {
 func (nopCloser) Close() error { return nil }
 
 func TestHandshake(t *testing.T) {
-	socks := SocksConn{&nopCloser{&bytes.Buffer{}}}
+	socks := SocksConn{ReadWriteCloser: &nopCloser{&bytes.Buffer{}}}
 
 	socks.Write([]byte{VERSION, 0x4, 0x3, 0x2, 0x1, 0x0})
 	socks.Handshake()
@@ -27,7 +27,7 @@ func TestHandshake(t *testing.T) {
 }
 
 func TestRequest(t *testing.T) {
-	socks := SocksConn{&nopCloser{&bytes.Buffer{}}}
+	socks := SocksConn{ReadWriteCloser: &nopCloser{&bytes.Buffer{}}}
 
 	socks.HandleRequest()
 }
